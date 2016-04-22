@@ -55,6 +55,7 @@
     "watch": "*"
   },
   "dependencies": {
-    "socketcluster": "^4.3.5"
+    "socketcluster": "^4.3.5",
+    "uuid": "^2.0.2"
   }
 }

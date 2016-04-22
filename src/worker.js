@@ -1,45 +1,43 @@
-var fs = require('fs');
-//static file serving disabled
-//var express = require('express');
-//var serveStatic = require('serve-static');
-var path = require('path');
+import {types, channels} from './core/protocol';
 
-module.exports.run = function (worker) {
+const entities = {};
+
+export function run(worker) {
   console.log('   >> Worker PID:', process.pid);
+  const httpServer = worker.httpServer;
+  const scServer = worker.scServer;
 
-  //var app = require('express')();
+  let nextEntityId = 0;
 
-  var httpServer = worker.httpServer;
-  var scServer = worker.scServer;
+  scServer.on('connection', socket => {
+    console.log(`Client ${socket.remoteAddress} connected. (${socket.id})`);
 
-  //app.use(serveStatic(path.resolve(__dirname, 'public')));
+    const arr = [];
+    Object.keys(entities).forEach(key => arr.push(entities[key]));
+    socket.emit(channels.GAME, {type: types.ENTITY_CREATE, data: arr});
 
-  //httpServer.on('request', app);
-
-  var count = 0;
-
-  /*
-    In here we handle our incoming realtime connections and listen for events.
-  */
-  scServer.on('connection', function (socket) {
-
-    // Some sample logic to show how to handle client events,
-    // replace this with your own logic
-
-    socket.on('sampleClientEvent', function (data) {
-      count++;
-      console.log('Handled sampleClientEvent', data);
-      scServer.exchange.publish('sample', count);
+    socket.on(channels.GAME, packet => {
+      switch (packet.type) {
+        case types.ENTITY_CREATE_REQUEST: {
+          let entity = packet.data;
+          const id = ++nextEntityId;
+          entity.id = id;
+          entities[id] = entity;
+          scServer.exchange.publish(channels.GAME, {type: types.ENTITY_CREATE, data: [entity]});
+        } break;
+        
+        case types.ENTITY_DELETE_REQUEST: {
+          const id = packet.data.id;
+          if (entities[id]) {
+            delete entities[id];
+            scServer.exchange.publish(channels.GAME, {type: types.ENTITY_DELETE, data: {id}});
+          }
+        } break;
+      }
     });
 
-    var interval = setInterval(function () {
-      socket.emit('rand', {
-        rand: Math.floor(Math.random() * 5)
-      });
-    }, 1000);
-
-    socket.on('disconnect', function () {
-      clearInterval(interval);
+    socket.on('disconnect', () => {
+      console.log(`Client ${socket.remoteAddress} disconnected. (${socket.id})`);
     });
   });
-};
+}
