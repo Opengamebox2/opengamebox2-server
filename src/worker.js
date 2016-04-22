@@ -1,4 +1,4 @@
-import {types, channels} from './core/protocol';
+import {types, channels} from '../protocol/protocol';
 
 const entities = {};
 
