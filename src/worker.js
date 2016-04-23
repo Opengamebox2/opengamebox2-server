@@ -1,5 +1,13 @@
 import {types, channels} from '../protocol/protocol';
 
+/**
+ * entity
+ * - id
+ * - imgHash
+ * - pos.x
+ * - pos.y
+ * - selectedClientId
+ */
 const entities = {};
 
 export function run(worker) {
@@ -12,12 +20,14 @@ export function run(worker) {
   scServer.on('connection', socket => {
     console.log(`Client ${socket.remoteAddress} connected. (${socket.id})`);
 
-    const arr = [];
-    Object.keys(entities).forEach(key => arr.push(entities[key]));
-    socket.emit(channels.GAME, {type: types.ENTITY_CREATE, data: arr});
-
     socket.on(channels.GAME, packet => {
       switch (packet.type) {
+        case types.HANDSHAKE: {
+          const arr = [];
+          Object.keys(entities).forEach(key => arr.push(entities[key]));
+          socket.emit(channels.GAME, {type: types.ENTITY_CREATE, data: arr});
+        } break;
+
         case types.ENTITY_CREATE_REQUEST: {
           let entity = packet.data;
           const id = ++nextEntityId;
@@ -31,6 +41,24 @@ export function run(worker) {
           if (entities[id]) {
             delete entities[id];
             scServer.exchange.publish(channels.GAME, {type: types.ENTITY_DELETE, data: {id}});
+          }
+        } break;
+
+        case types.ENTITY_SELECT_REQUEST: {
+          const idArr = packet.data;
+          const updateList = [];
+          Object.keys(entities).forEach(key => {
+            let entity = entities[key];
+
+            if (entity.selectedClientId === null || 
+                  entity.selectedClientId === socket.id) {
+              entity.selectedClientId = idArr.find(id => entity.id === id) ? socket.id : null;
+              updateList.push({id: entity.id, selectedClientId: entity.selectedClientId});
+            }
+          });
+
+          if (updateList.length !== 0) {
+            scServer.exchange.publish(channels.GAME, {type: types.ENTITY_SELECT, data: updateList});
           }
         } break;
       }
