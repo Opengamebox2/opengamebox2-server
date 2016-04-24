@@ -21,8 +21,6 @@ io.on('connection', socket => {
   const remoteAddress = socket.request.connection.remoteAddress;
   console.log(`Client ${remoteAddress} connected. (${socket.id})`);
 
-  
-
   socket.on(types.HANDSHAKE, data => {
     const id = crypto
       .createHash('sha1')
