@@ -28,10 +28,14 @@ io.on('connection', socket => {
       .digest('base64');
 
     socket.emit(types.HANDSHAKE_REPLY, {id});
-    socket.emit(types.ENTITY_CREATE, objectToList(entities));
     socket.emit(types.PLAYER_JOIN, objectToList(players));
+    socket.emit(types.ENTITY_CREATE, objectToList(entities));
 
-    players[getClientId(socket)] = {id};
+    players[getClientId(socket)] = {
+      id: id,
+      color: nextPlayerColor(),
+    };
+
     socket.join(channels.GAME);
     io.to(channels.GAME).emit(types.PLAYER_JOIN, [players[getClientId(socket)]]);
   });
@@ -128,6 +132,14 @@ function onRequest(socket, type, callback) {
       callback(data, player);
     }
   });
+}
+
+function nextPlayerColor() {
+  for (let i = 0;; ++i) {
+    if (!Object.keys(players).find(key => { return players[key].color === i; })) {
+      return i;
+    }
+  }
 }
 
 function objectToList(object) {
