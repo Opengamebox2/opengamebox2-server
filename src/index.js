@@ -1,6 +1,7 @@
 import socketio from 'socket.io';
 const io = socketio();
 import {types, channels} from '../protocol/protocol';
+import crypto from 'crypto';
 
 /**
  * entity
@@ -11,6 +12,7 @@ import {types, channels} from '../protocol/protocol';
  * - selectedClientId
  */
 const entities = {};
+const players = {};
 
 let nextEntityId = 0;
 
@@ -19,12 +21,23 @@ io.on('connection', socket => {
   console.log(`Client ${remoteAddress} connected. (${socket.id})`);
 
   
-  const arr = [];
-  Object.keys(entities).forEach(key => arr.push(entities[key]));
-  socket.emit(types.ENTITY_CREATE, arr);
-  socket.join(channels.GAME);
+
+  socket.on(types.HANDSHAKE, data => {
+    const id = crypto
+      .createHash('sha1')
+      .update(data.authToken)
+      .digest('base64');
+
+    players[getClientId(socket)] = {id};
+    socket.emit(types.HANDSHAKE_REPLY, {id});
+
+    const arr = [];
+    Object.keys(entities).forEach(key => arr.push(entities[key]));
+    socket.emit(types.ENTITY_CREATE, arr);
+    socket.join(channels.GAME);
+  });
   
-  socket.on(types.ENTITY_CREATE_REQUEST, entityArr => {
+  onRequest(socket, types.ENTITY_CREATE_REQUEST, (entityArr, player) => {
     const createList = [];
     entityArr.forEach(entity => {
       const id = ++nextEntityId;
@@ -38,7 +51,7 @@ io.on('connection', socket => {
     }
   });
 
-  socket.on(types.ENTITY_DELETE_REQUEST, entityArr => {
+  onRequest(socket, types.ENTITY_DELETE_REQUEST, (entityArr, player) => {
     const deleteList = [];
     entityArr.forEach(entity => {
       const id = entity.id;
@@ -53,14 +66,13 @@ io.on('connection', socket => {
     }
   });
 
-  socket.on(types.ENTITY_SELECT_REQUEST, entityArr => {
+  onRequest(socket, types.ENTITY_SELECT_REQUEST, (entityArr, player) => {
     const updateList = [];
     Object.keys(entities).forEach(key => {
       let entity = entities[key];
-
       if (entity.selectedClientId === null || 
-            entity.selectedClientId === getClientId(socket)) {
-        entity.selectedClientId = entityArr.find(ent => entity.id === ent.id) ? getClientId(socket) : null;
+            entity.selectedClientId === player.id) {
+        entity.selectedClientId = entityArr.find(ent => entity.id === ent.id) ? player.id : null;
         updateList.push({id: entity.id, selectedClientId: entity.selectedClientId});
       }
     });
@@ -70,11 +82,11 @@ io.on('connection', socket => {
     }
   });
 
-  socket.on(types.ENTITY_MOVE_REQUEST, entityArr => {
+  onRequest(socket, types.ENTITY_MOVE_REQUEST, (entityArr, player) => {
     const moveList = [];
     entityArr.forEach(entity => {
       let ent = entities[entity.id];
-      if (ent.selectedClientId === getClientId(socket)) {
+      if (ent.selectedClientId === player.id) {
         ent.pos = entity.pos;
         moveList.push({id: ent.id, pos: ent.pos});
       }
@@ -95,6 +107,15 @@ io.listen(8000);
 
 function getClientId(socket) {
   return socket.id.substr(2);
+}
+
+function onRequest(socket, type, callback) {
+  socket.on(type, data => {
+    const player = players[getClientId(socket)];
+    if (player) {
+      callback(data, player);
+    }
+  });
 }
 
 
