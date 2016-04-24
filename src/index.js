@@ -30,11 +30,10 @@ io.on('connection', socket => {
       .digest('base64');
 
     players[getClientId(socket)] = {id};
-    socket.emit(types.HANDSHAKE_REPLY, {id});
 
-    const arr = [];
-    Object.keys(entities).forEach(key => arr.push(entities[key]));
-    socket.emit(types.ENTITY_CREATE, arr);
+    socket.emit(types.HANDSHAKE_REPLY, {id});
+    socket.emit(types.ENTITY_CREATE,  objectToList(entities));
+
     socket.join(channels.GAME);
   });
   
@@ -129,6 +128,11 @@ function onRequest(socket, type, callback) {
   });
 }
 
+function objectToList(object) {
+  const result = [];
+  Object.keys(object).forEach(key => result.push(object[key]));
+  return result;
+}
 
 /**
  * @param {Type}
