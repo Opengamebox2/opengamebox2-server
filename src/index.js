@@ -120,9 +120,11 @@ io.on('connection', socket => {
 
   socket.on('disconnect', () => {
     console.log(`Client ${remoteAddress} disconnected. (${socket.id})`);
-    io.to(channels.GAME).emit(types.PLAYER_LEAVE,
-                              [{id: players[getClientId(socket)].id}]);
-    delete players[getClientId(socket)];
+    if (players[getClientId(socket)]) {
+      io.to(channels.GAME).emit(types.PLAYER_LEAVE,
+                                [{id: players[getClientId(socket)].id}]);
+      delete players[getClientId(socket)];
+    }
   });
 });
 
