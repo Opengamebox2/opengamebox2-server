@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import socketio from 'socket.io';
 const io = socketio();
 import {types, channels} from '../protocol/protocol';
@@ -28,8 +29,8 @@ io.on('connection', socket => {
       .digest('base64');
 
     socket.emit(types.HANDSHAKE_REPLY, {id});
-    socket.emit(types.PLAYER_JOIN, objectToList(players));
-    socket.emit(types.ENTITY_CREATE, objectToList(entities));
+    socket.emit(types.PLAYER_JOIN, _.values(players));
+    socket.emit(types.ENTITY_CREATE, _.values(entities));
 
     players[getClientId(socket)] = {
       id: id,
@@ -72,19 +73,22 @@ io.on('connection', socket => {
 
   onRequest(socket, types.ENTITY_SELECT_REQUEST, (entityArr, player) => {
     const updateList = [];
-    Object.keys(entities).forEach(key => {
-      let entity = entities[key];
+    _.forOwn(entities, entity => {
       if (entity.selectedClientId === null || 
             entity.selectedClientId === player.id) {
         const old = entity.selectedClientId;
-        entity.selectedClientId = entityArr.find(ent => entity.id === ent.id) ? player.id : null;
+        entity.selectedClientId = _.some(entityArr, {id: entity.id}) ? player.id : null;
         
         if (entity.selectedClientId) {
           entity.depth = ++nextEntityDepth;
         }
 
         if (old !== entity.selectedClientId) {
-          updateList.push({id: entity.id, selectedClientId: entity.selectedClientId, depth: entity.depth});
+          updateList.push({
+            id: entity.id,
+            selectedClientId: entity.selectedClientId,
+            depth: entity.depth,
+          });
         }
       }
     });
@@ -101,7 +105,11 @@ io.on('connection', socket => {
       if (ent.selectedClientId === player.id) {
         ent.pos = entity.pos;
         ent.depth = ++nextEntityDepth;
-        moveList.push({id: ent.id, pos: ent.pos, depth: ent.depth});
+        moveList.push({
+          id: ent.id,
+          pos: ent.pos,
+          depth: ent.depth,
+        });
       }
     });
 
@@ -120,7 +128,6 @@ io.on('connection', socket => {
 
 io.listen(8000);
 
-
 function getClientId(socket) {
   return socket.id.substr(2);
 }
@@ -136,16 +143,10 @@ function onRequest(socket, type, callback) {
 
 function nextPlayerColor() {
   for (let i = 0;; ++i) {
-    if (!Object.keys(players).find(key => { return players[key].color === i; })) {
+    if (!_.some(players, {color: i})) {
       return i;
     }
   }
-}
-
-function objectToList(object) {
-  const result = [];
-  Object.keys(object).forEach(key => result.push(object[key]));
-  return result;
 }
 
 /**
