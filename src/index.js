@@ -15,6 +15,7 @@ const entities = {};
 const players = {};
 
 let nextEntityId = 0;
+let nextEntityDepth = 0;
 
 io.on('connection', socket => {
   const remoteAddress = socket.request.connection.remoteAddress;
@@ -42,6 +43,7 @@ io.on('connection', socket => {
     entityArr.forEach(entity => {
       const id = ++nextEntityId;
       entity.id = id;
+      entity.depth = ++nextEntityDepth;
       entities[id] = entity;
       createList.push(entity);
     });
@@ -72,8 +74,16 @@ io.on('connection', socket => {
       let entity = entities[key];
       if (entity.selectedClientId === null || 
             entity.selectedClientId === player.id) {
+        const old = entity.selectedClientId;
         entity.selectedClientId = entityArr.find(ent => entity.id === ent.id) ? player.id : null;
-        updateList.push({id: entity.id, selectedClientId: entity.selectedClientId});
+        
+        if (entity.selectedClientId) {
+          entity.depth = ++nextEntityDepth;
+        }
+
+        if (old !== entity.selectedClientId) {
+          updateList.push({id: entity.id, selectedClientId: entity.selectedClientId, depth: entity.depth});
+        }
       }
     });
 
@@ -88,7 +98,8 @@ io.on('connection', socket => {
       let ent = entities[entity.id];
       if (ent.selectedClientId === player.id) {
         ent.pos = entity.pos;
-        moveList.push({id: ent.id, pos: ent.pos});
+        ent.depth = ++nextEntityDepth;
+        moveList.push({id: ent.id, pos: ent.pos, depth: ent.depth});
       }
     });
 
