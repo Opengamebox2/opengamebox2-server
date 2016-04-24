@@ -15,7 +15,8 @@ const entities = {};
 let nextEntityId = 0;
 
 io.on('connection', socket => {
-  console.log(`Client ${socket.remoteAddress} connected. (${socket.id})`);
+  const remoteAddress = socket.request.connection.remoteAddress;
+  console.log(`Client ${remoteAddress} connected. (${socket.id})`);
 
   
   const arr = [];
@@ -31,7 +32,10 @@ io.on('connection', socket => {
       entities[id] = entity;
       createList.push(entity);
     });
-    io.to(channels.GAME).emit(types.ENTITY_CREATE, createList);
+
+    if (createList.length !== 0) {
+      io.to(channels.GAME).emit(types.ENTITY_CREATE, createList);
+    }
   });
 
   socket.on(types.ENTITY_DELETE_REQUEST, entityArr => {
@@ -43,7 +47,10 @@ io.on('connection', socket => {
         deleteList.push({id});
       }
     });
-    io.to(channels.GAME).emit(types.ENTITY_DELETE, deleteList);
+
+    if (deleteList.length !== 0) {
+      io.to(channels.GAME).emit(types.ENTITY_DELETE, deleteList);
+    }
   });
 
   socket.on(types.ENTITY_SELECT_REQUEST, entityArr => {
@@ -52,8 +59,8 @@ io.on('connection', socket => {
       let entity = entities[key];
 
       if (entity.selectedClientId === null || 
-            entity.selectedClientId === socket.id.substr(2)) {
-        entity.selectedClientId = entityArr.find(ent => entity.id === ent.id) ? socket.id.substr(2) : null;
+            entity.selectedClientId === getClientId(socket)) {
+        entity.selectedClientId = entityArr.find(ent => entity.id === ent.id) ? getClientId(socket) : null;
         updateList.push({id: entity.id, selectedClientId: entity.selectedClientId});
       }
     });
@@ -63,15 +70,32 @@ io.on('connection', socket => {
     }
   });
 
+  socket.on(types.ENTITY_MOVE_REQUEST, entityArr => {
+    const moveList = [];
+    entityArr.forEach(entity => {
+      let ent = entities[entity.id];
+      if (ent.selectedClientId === getClientId(socket)) {
+        ent.pos = entity.pos;
+        moveList.push({id: ent.id, pos: ent.pos});
+      }
+    });
+
+    if (moveList.length !== 0) {
+      io.to(channels.GAME).emit(types.ENTITY_MOVE, moveList);
+    }
+  });
+
   socket.on('disconnect', () => {
-    console.log(`Client ${socket.remoteAddress} disconnected. (${socket.id})`);
+    console.log(`Client ${remoteAddress} disconnected. (${socket.id})`);
   });
 });
-
 
 io.listen(8000);
 
 
+function getClientId(socket) {
+  return socket.id.substr(2);
+}
 
 
 /**
