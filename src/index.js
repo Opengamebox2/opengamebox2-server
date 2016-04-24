@@ -27,12 +27,13 @@ io.on('connection', socket => {
       .update(data.authToken)
       .digest('base64');
 
-    players[getClientId(socket)] = {id};
-
     socket.emit(types.HANDSHAKE_REPLY, {id});
-    socket.emit(types.ENTITY_CREATE,  objectToList(entities));
+    socket.emit(types.ENTITY_CREATE, objectToList(entities));
+    socket.emit(types.PLAYER_JOIN, objectToList(players));
 
+    players[getClientId(socket)] = {id};
     socket.join(channels.GAME);
+    io.to(channels.GAME).emit(types.PLAYER_JOIN, [players[getClientId(socket)]]);
   });
   
   onRequest(socket, types.ENTITY_CREATE_REQUEST, (entityArr, player) => {
@@ -107,6 +108,9 @@ io.on('connection', socket => {
 
   socket.on('disconnect', () => {
     console.log(`Client ${remoteAddress} disconnected. (${socket.id})`);
+    io.to(channels.GAME).emit(types.PLAYER_LEAVE,
+                              [{id: players[getClientId(socket)].id}]);
+    delete players[getClientId(socket)];
   });
 });
 
