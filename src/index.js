@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import socketio from 'socket.io';
 const io = socketio();
-import {types, channels} from '../protocol/protocol';
+import protocol from '../protocol';
 import crypto from 'crypto';
 
 /**
@@ -22,26 +22,26 @@ io.on('connection', socket => {
   const remoteAddress = socket.request.connection.remoteAddress;
   console.log(`Client ${remoteAddress} connected. (${socket.id})`);
 
-  socket.on(types.HANDSHAKE, data => {
+  socket.on(protocol.requests.HANDSHAKE, data => {
     const id = crypto
       .createHash('sha1')
       .update(data.authToken)
       .digest('base64');
 
-    socket.emit(types.HANDSHAKE_REPLY, {id});
-    socket.emit(types.PLAYER_JOIN, _.values(players));
-    socket.emit(types.ENTITY_CREATE, _.values(entities));
+    socket.emit(protocol.replies.HANDSHAKE_REPLY, {id});
+    socket.emit(protocol.events.PLAYER_JOIN, _.values(players));
+    socket.emit(protocol.events.ENTITY_CREATE, _.values(entities));
 
     players[getClientId(socket)] = {
       id: id,
       color: nextPlayerColor(),
     };
 
-    socket.join(channels.GAME);
-    io.to(channels.GAME).emit(types.PLAYER_JOIN, [players[getClientId(socket)]]);
+    socket.join('game');
+    io.to('game').emit(protocol.events.PLAYER_JOIN, [players[getClientId(socket)]]);
   });
   
-  onRequest(socket, types.ENTITY_CREATE_REQUEST, (entityArr, player) => {
+  onRequest(socket, protocol.requests.ENTITY_CREATE_REQUEST, (entityArr, player) => {
     const createList = [];
     entityArr.forEach(entity => {
       const id = ++nextEntityId;
@@ -52,11 +52,11 @@ io.on('connection', socket => {
     });
 
     if (createList.length !== 0) {
-      io.to(channels.GAME).emit(types.ENTITY_CREATE, createList);
+      io.to('game').emit(protocol.events.ENTITY_CREATE, createList);
     }
   });
 
-  onRequest(socket, types.ENTITY_DELETE_REQUEST, (entityArr, player) => {
+  onRequest(socket, protocol.requests.ENTITY_DELETE_REQUEST, (entityArr, player) => {
     const deleteList = [];
     entityArr.forEach(entity => {
       const id = entity.id;
@@ -67,11 +67,11 @@ io.on('connection', socket => {
     });
 
     if (deleteList.length !== 0) {
-      io.to(channels.GAME).emit(types.ENTITY_DELETE, deleteList);
+      io.to('game').emit(protocol.events.ENTITY_DELETE, deleteList);
     }
   });
 
-  onRequest(socket, types.ENTITY_SELECT_REQUEST, (entityArr, player) => {
+  onRequest(socket, protocol.requests.ENTITY_SELECT_REQUEST, (entityArr, player) => {
     const updateList = [];
     _.forOwn(entities, entity => {
       if (entity.selectedClientId === null || 
@@ -94,11 +94,11 @@ io.on('connection', socket => {
     });
 
     if (updateList.length !== 0) {
-      io.to(channels.GAME).emit(types.ENTITY_SELECT, updateList);
+      io.to('game').emit(protocol.events.ENTITY_SELECT, updateList);
     }
   });
 
-  onRequest(socket, types.ENTITY_MOVE_REQUEST, (entityArr, player) => {
+  onRequest(socket, protocol.requests.ENTITY_MOVE_REQUEST, (entityArr, player) => {
     const moveList = [];
     entityArr.forEach(entity => {
       let ent = entities[entity.id];
@@ -114,14 +114,14 @@ io.on('connection', socket => {
     });
 
     if (moveList.length !== 0) {
-      io.to(channels.GAME).emit(types.ENTITY_MOVE, moveList);
+      io.to('game').emit(protocol.events.ENTITY_MOVE, moveList);
     }
   });
 
   socket.on('disconnect', () => {
     console.log(`Client ${remoteAddress} disconnected. (${socket.id})`);
     if (players[getClientId(socket)]) {
-      io.to(channels.GAME).emit(types.PLAYER_LEAVE,
+      io.to('game').emit(protocol.events.PLAYER_LEAVE,
                                 [{id: players[getClientId(socket)].id}]);
       delete players[getClientId(socket)];
     }
