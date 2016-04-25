@@ -118,6 +118,14 @@ io.on('connection', socket => {
     }
   });
 
+  onRequest(socket, protocol.requests.PLAYER_UPDATE_REQUEST, (update, player) => {
+    player.name = update.name;
+    io.to('game').emit(protocol.events.PLAYER_UPDATE, {
+      id: player.id,
+      name: player.name,
+    });
+  });
+
   socket.on('disconnect', () => {
     console.log(`Client ${remoteAddress} disconnected. (${socket.id})`);
     if (players[getClientId(socket)]) {
