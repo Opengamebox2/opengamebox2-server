@@ -14,13 +14,15 @@ import crypto from 'crypto';
  */
 const entities = {};
 const players = {};
+const sockets = {};
 
 let nextEntityId = 0;
 let nextEntityDepth = 0;
 
 io.on('connection', socket => {
+  const socketId = getSocketId(socket);
   const remoteAddress = socket.request.connection.remoteAddress;
-  console.log(`Client ${remoteAddress} connected. (${socket.id})`);
+  console.log(`Client ${remoteAddress} connected. (${socketId})`);
 
   socket.on(protocol.requests.HANDSHAKE, data => {
     const id = crypto
@@ -31,14 +33,17 @@ io.on('connection', socket => {
     socket.emit(protocol.replies.HANDSHAKE_REPLY, {id});
     socket.emit(protocol.events.PLAYER_JOIN, _.values(players));
     socket.emit(protocol.events.ENTITY_CREATE, _.values(entities));
-
-    players[getClientId(socket)] = {
-      id: id,
-      color: nextPlayerColor(),
-    };
-
     socket.join('game');
-    io.to('game').emit(protocol.events.PLAYER_JOIN, [players[getClientId(socket)]]);
+    sockets[socketId] = id;
+
+    if (!players[id]) {
+      players[id] = {
+        id,
+        color: nextPlayerColor(),
+      };
+
+      io.to('game').emit(protocol.events.PLAYER_JOIN, [players[id]]);
+    }
   });
   
   onRequest(socket, protocol.requests.ENTITY_CREATE_REQUEST, (entityArr, player) => {
@@ -127,24 +132,33 @@ io.on('connection', socket => {
   });
 
   socket.on('disconnect', () => {
-    console.log(`Client ${remoteAddress} disconnected. (${socket.id})`);
-    if (players[getClientId(socket)]) {
-      io.to('game').emit(protocol.events.PLAYER_LEAVE,
-                                [{id: players[getClientId(socket)].id}]);
-      delete players[getClientId(socket)];
+    const socketId = getSocketId(socket);
+    const playerId = sockets[socketId];
+
+    console.log(`Client ${remoteAddress} disconnected. (${socketId})`);
+
+    if (playerId) {
+      delete sockets[socketId];
+
+      if (!_.some(sockets, x => x === playerId)) {
+        io.to('game').emit(protocol.events.PLAYER_LEAVE, [{id: playerId}]);
+        delete players[playerId];
+      }
     }
   });
 });
 
 io.listen(8000);
 
-function getClientId(socket) {
+function getSocketId(socket) {
   return socket.id.substr(2);
 }
 
 function onRequest(socket, type, callback) {
   socket.on(type, data => {
-    const player = players[getClientId(socket)];
+    const playerId = sockets[getSocketId(socket)];
+    const player = players[playerId];
+
     if (player) {
       callback(data, player);
     }
