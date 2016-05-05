@@ -21,8 +21,8 @@ let nextEntityDepth = 0;
 
 io.on('connection', socket => {
   const socketId = getSocketId(socket);
-  const remoteAddress = socket.request.connection.remoteAddress;
-  console.log(`Client ${remoteAddress} connected. (${socketId})`);
+  const remoteAddress = getSocketAddress(socket);
+  console.log(`Client '${remoteAddress}' connected. (${socketId})`);
 
   socket.on(protocol.requests.HANDSHAKE, data => {
     const id = crypto
@@ -145,7 +145,7 @@ io.on('connection', socket => {
     const socketId = getSocketId(socket);
     const playerId = sockets[socketId];
 
-    console.log(`Client ${remoteAddress} disconnected. (${socketId})`);
+    console.log(`Client '${remoteAddress}' disconnected. (${socketId})`);
 
     if (playerId) {
       delete sockets[socketId];
@@ -159,6 +159,17 @@ io.on('connection', socket => {
 });
 
 io.listen(8000);
+
+function getSocketAddress(socket) {
+  const address = socket.request.connection.remoteAddress;
+  const realIp = socket.request.headers['x-real-ip'];
+
+  if (realIp) {
+    return `${realIp} via ${address}`;
+  } else {
+    return address;
+  }
+}
 
 function getSocketId(socket) {
   return socket.id.substr(2);
