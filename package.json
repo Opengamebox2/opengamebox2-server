@@ -8,6 +8,7 @@
     "dist/"
   ],
   "scripts": {
+    "start": "npm run build",
     "clean": "rimraf dist",
     "lint": "eslint src test",
     "check": "npm run lint -s && dependency-check package.json --entry src",
