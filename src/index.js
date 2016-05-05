@@ -18,6 +18,7 @@ const sockets = {};
 
 let nextEntityId = 0;
 let nextEntityDepth = 0;
+let chatMessageId = 0;
 
 io.on('connection', socket => {
   const socketId = getSocketId(socket);
@@ -128,6 +129,15 @@ io.on('connection', socket => {
     io.to('game').emit(protocol.events.PLAYER_UPDATE, {
       id: player.id,
       name: player.name,
+    });
+  });
+
+  onRequest(socket, protocol.requests.CHAT_MESSAGE_REQUEST, (message, player) => {
+    io.to('game').emit(protocol.events.CHAT_MESSAGE, {
+      id: ++chatMessageId,
+      content: message.content,
+      fromId: player.id,
+      time: Date.now(),
     });
   });
 
