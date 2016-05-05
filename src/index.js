@@ -45,12 +45,13 @@ io.on('connection', socket => {
       io.to('game').emit(protocol.events.PLAYER_JOIN, [players[id]]);
     }
   });
-  
+
   onRequest(socket, protocol.requests.ENTITY_CREATE_REQUEST, (entityArr, player) => {
     const createList = [];
     entityArr.forEach(entity => {
       const id = ++nextEntityId;
       entity.id = id;
+      entity.selectedClientId = null;
       entity.depth = ++nextEntityDepth;
       entities[id] = entity;
       createList.push(entity);
@@ -77,27 +78,28 @@ io.on('connection', socket => {
   });
 
   onRequest(socket, protocol.requests.ENTITY_SELECT_REQUEST, (entityArr, player) => {
-    const updateList = [];
-    _.forOwn(entities, entity => {
-      if (entity.selectedClientId === null || 
-            entity.selectedClientId === player.id) {
-        const old = entity.selectedClientId;
-        entity.selectedClientId = _.some(entityArr, {id: entity.id}) ? player.id : null;
-        
-        if (entity.selectedClientId) {
-          entity.depth = ++nextEntityDepth;
-        }
+    let updateList = {};
 
-        if (old !== entity.selectedClientId) {
-          updateList.push({
-            id: entity.id,
-            selectedClientId: entity.selectedClientId,
-            depth: entity.depth,
-          });
-        }
-      }
+    // Deselect entities previously selected by the player
+    _(entities)
+    .values()
+    .filter(x => x.selectedClientId === player.id)
+    .forEach(entity => {
+      entity.selectedClientId = null;
+      updateList[entity.id] = _.pick(entity, ['id', 'selectedClientId', 'depth']);
     });
 
+    // Make the new selection
+    _(entityArr)
+    .map(x => entities[x.id])
+    .filter(x => x.selectedClientId === null)
+    .forEach(entity => {
+      entity.selectedClientId = player.id;
+      entity.depth = ++nextEntityDepth;
+      updateList[entity.id] = _.pick(entity, ['id', 'selectedClientId', 'depth']);
+    });
+
+    updateList = _.values(updateList);
     if (updateList.length !== 0) {
       io.to('game').emit(protocol.events.ENTITY_SELECT, updateList);
     }
