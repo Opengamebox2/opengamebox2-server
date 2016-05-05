@@ -1,24 +1,23 @@
-# opengamebox2-server
+Opengamebox 2 Server
+====================
 
-[![NPM version][npm-image]][npm-url]
-[![Build Status][travis-image]][travis-url]
-[![Coveralls Status][coveralls-image]][coveralls-url]
-[![Dependency Status][depstat-image]][depstat-url]
-[![Downloads][download-badge]][npm-url]
+This is the official server implementation for Opengamebox 2 made with
+NodeJS.
 
-> 
+Running
+-------
 
+If you didn't clone this Git repository recursively, you need to initialize
+the submodules:
 
-[npm-url]: https://npmjs.org/package/opengamebox2-server
-[npm-image]: https://img.shields.io/npm/v/opengamebox2-server.svg?style=flat-square
+	$ git submodule init
 
-[travis-url]: https://travis-ci.org/Opengamebox2/opengamebox2-server
-[travis-image]: https://img.shields.io/travis/Opengamebox2/opengamebox2-server.svg?style=flat-square
+After you checkout a new commit, you need to update the submodules and npm
+dependencies:
 
-[coveralls-url]: https://coveralls.io/r/Opengamebox2/opengamebox2-server
-[coveralls-image]: https://img.shields.io/coveralls/Opengamebox2/opengamebox2-server.svg?style=flat-square
+	$ git submodule update
+	$ npm install
 
-[depstat-url]: https://david-dm.org/Opengamebox2/opengamebox2-server
-[depstat-image]: https://david-dm.org/Opengamebox2/opengamebox2-server.svg?style=flat-square
+The server can be started with:
 
-[download-badge]: http://img.shields.io/npm/dm/opengamebox2-server.svg?style=flat-square
+	$ npm start
